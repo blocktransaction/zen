@@ -1,0 +1,33 @@
+[server]
+host = "0.0.0.0"                                            #服务器地址
+port = 4444                                                 #端口
+
+
+[application]
+env = "dev"                                                 #dev--测试 prod --生产
+logName = "server"
+logFilePath = "./log"
+logFileName = "access.log"
+logFileMaxSize = 500                                        #mb
+logFileMaxAge = 15                                          #day
+i18nFilePath = "../../../../common/language"
+i18nSupportLanguage = ["zh-cn", "zh", "en","es"]
+templateFile = "./template.json"
+jwtExpiresAt = 48                                            #jwt有效期(单位：小时)
+userExpiresAt  = 10                                          #用户公共过期时间（分钟)
+maxUploadImageNum = 10                                       #最大用户上传统计
+
+
+[api] 
+allowPathPrefixSkipper = [
+    "/api/v1/user/mobile/smscode/send",
+    "/api/v1/user/mobile/smscode/verify",
+    "/api/v1/user/mobile/register",
+    "/api/v1/user/mail/emailcode/send",
+    "/api/v1/user/mail/emailcode/verify",
+    "/api/v1/user/mail/register",
+    "/api/v1/user/mobile/login",
+    "/api/v1/user/email/login",
+    "/api/v1/user/mobile/password/forget",
+    "/api/v1/user/mail/password/forget",
+    "/api/v1/card/speedpay/callback"]
