@@ -11,7 +11,8 @@ import (
 
 	"github.com/blocktransaction/zen/app/router"
 	"github.com/blocktransaction/zen/config"
-	"github.com/blocktransaction/zen/internal/log"
+	"github.com/blocktransaction/zen/internal/i18n"
+	"github.com/blocktransaction/zen/internal/logx"
 	"github.com/spf13/cobra"
 )
 
@@ -34,9 +35,9 @@ var (
 
 // init
 func init() {
-	// 初始化配置
+	// 配置文件路径
 	StartCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "config/", "Start server with provided configuration file")
-	// 初始化数据库
+	// 数据库合并迁移
 	StartCmd.PersistentFlags().BoolVarP(&autoMigrate, "autoMigrate", "a", false, "database auto migrate")
 }
 
@@ -44,6 +45,9 @@ func init() {
 func setup() {
 	config.Setup(
 		configPath,
+		i18n.Setup,
+		// mysql.Setup,
+		// redis.Setup,
 	)
 }
 
@@ -52,12 +56,12 @@ func run() error {
 	//开启自动迁移模式
 	autoDatabaseMigrate()
 	//初始化日志
-	zapLog := log.NewLogger(
-		log.WithLogFileName(config.ApplicationConfig.LogFileName),
-		log.WithLogFilePath(config.ApplicationConfig.LogFilePath),
-		log.WithSerivceName(config.ApplicationConfig.LogName),
-		log.WithLogFileMaxSize(config.ApplicationConfig.LogFileMaxSize),
-		log.WithLogLogFileMaxAge(config.ApplicationConfig.LogFileMaxAge),
+	zapLog := logx.NewLogger(
+		logx.WithLogFileName(config.ApplicationConfig.LogFileName),
+		logx.WithLogFilePath(config.ApplicationConfig.LogFilePath),
+		logx.WithSerivceName(config.ApplicationConfig.LogName),
+		logx.WithLogFileMaxSize(config.ApplicationConfig.LogFileMaxSize),
+		logx.WithLogLogFileMaxAge(config.ApplicationConfig.LogFileMaxAge),
 	)
 
 	//server配置

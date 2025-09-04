@@ -12,6 +12,7 @@ logFileMaxSize = 500                                        #mb
 logFileMaxAge = 15                                          #day
 i18nFilePath = "../../../../common/language"
 i18nSupportLanguage = ["zh-cn", "zh", "en","es"]
+defaultLang = "zh"
 templateFile = "./template.json"
 jwtExpiresAt = 48                                            #jwt有效期(单位：小时)
 userExpiresAt  = 10                                          #用户公共过期时间（分钟)

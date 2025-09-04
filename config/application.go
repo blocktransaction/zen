@@ -9,6 +9,7 @@ type Application struct {
 	LogFileMaxAge       int
 	I18nFilePath        string
 	I18nSupportLanguage []string
+	DefaultLang         string
 	TemplateFile        string
 	JwtExpiresAt        int64
 	UserExpiresAt       int64

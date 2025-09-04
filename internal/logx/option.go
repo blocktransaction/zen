@@ -1,4 +1,4 @@
-package log
+package logx
 
 type option struct {
 	serivceName    string

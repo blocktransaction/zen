@@ -3,6 +3,7 @@ package logger
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -169,8 +170,8 @@ func GinzapWithBody(logger *zap.Logger, opts ...Option) gin.HandlerFunc {
 
 		c.Next()
 
-		latency := time.Since(start)
-
+		//计算用时（毫秒）
+		elapsedMsFloat := float64(time.Since(start)) / float64(time.Millisecond)
 		var respBody string
 		if options.enableRespBody {
 			respCT := c.Writer.Header().Get("Content-Type")
@@ -191,16 +192,23 @@ func GinzapWithBody(logger *zap.Logger, opts ...Option) gin.HandlerFunc {
 			}
 		}
 
-		logger.Info("http request log",
-			zap.String("method", c.Request.Method),
-			zap.String("path", c.Request.URL.Path),
-			zap.String("query", c.Request.URL.RawQuery),
-			zap.Int("status", c.Writer.Status()),
-			zap.String("ip", c.ClientIP()),
-			zap.Duration("latency", latency),
-			zap.String("reqBody", reqBody),
-			zap.String("respBody", respBody),
-		)
+		if len(c.Errors) > 0 {
+			for _, e := range c.Errors.Errors() {
+				logger.Error(e)
+			}
+		} else {
+			logger.Info("http request log",
+				zap.String("traceId", c.GetString("traceID")),
+				zap.String("method", c.Request.Method),
+				zap.String("path", c.Request.URL.Path),
+				zap.String("query", c.Request.URL.RawQuery),
+				zap.Int("status", c.Writer.Status()),
+				zap.String("ip", c.ClientIP()),
+				zap.String("latency", fmt.Sprintf("%.4fms", elapsedMsFloat)),
+				zap.String("reqBody", reqBody),
+				zap.String("respBody", respBody),
+			)
+		}
 	}
 }
 
