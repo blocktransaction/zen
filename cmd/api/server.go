@@ -11,15 +11,16 @@ import (
 
 	"github.com/blocktransaction/zen/app/router"
 	"github.com/blocktransaction/zen/config"
+	"github.com/blocktransaction/zen/internal/database/mysql"
+	"github.com/blocktransaction/zen/internal/database/redis"
 	"github.com/blocktransaction/zen/internal/i18n"
 	"github.com/blocktransaction/zen/internal/logx"
 	"github.com/spf13/cobra"
 )
 
 var (
-	configPath  string
-	autoMigrate bool
-	StartCmd    = &cobra.Command{
+	configPath string
+	StartCmd   = &cobra.Command{
 		Use:          "server",
 		Short:        "Start API server",
 		Example:      "zen server -c config/",
@@ -36,9 +37,7 @@ var (
 // init
 func init() {
 	// 配置文件路径
-	StartCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "config/", "Start server with provided configuration file")
-	// 数据库合并迁移
-	StartCmd.PersistentFlags().BoolVarP(&autoMigrate, "autoMigrate", "a", false, "database auto migrate")
+	StartCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "config/", "配置目录(默认：config)")
 }
 
 // 初始化相关
@@ -46,15 +45,12 @@ func setup() {
 	config.Setup(
 		configPath,
 		i18n.Setup,
-		// mysql.Setup,
-		// redis.Setup,
+		mysql.Setup,
 	)
 }
 
 // 运行
 func run() error {
-	//开启自动迁移模式
-	autoDatabaseMigrate()
 	//初始化日志
 	zapLog := logx.NewLogger(
 		logx.WithLogFileName(config.ApplicationConfig.LogFileName),
@@ -63,6 +59,9 @@ func run() error {
 		logx.WithLogFileMaxSize(config.ApplicationConfig.LogFileMaxSize),
 		logx.WithLogLogFileMaxAge(config.ApplicationConfig.LogFileMaxAge),
 	)
+
+	//redis初始化，且日志允许输出结果
+	redis.Setup(zapLog, true)
 
 	//server配置
 	server := &http.Server{
@@ -94,11 +93,4 @@ func run() error {
 	fmt.Println("Server stopped.")
 
 	return nil
-}
-
-// 自动迁移数据库
-func autoDatabaseMigrate() {
-	if autoMigrate {
-
-	}
 }

@@ -85,7 +85,7 @@ func newZapLogger(isProduction bool, output zapcore.WriteSyncer) (*zap.Logger, *
 	if isProduction {
 		dyn.SetLevel(zap.InfoLevel)
 		encCfg.EncodeLevel = zapcore.LowercaseLevelEncoder
-		encoder = zapcore.NewJSONEncoder(encCfg) // zapcore.NewJSONEncoder(encCfg)
+		encoder = zapcore.NewJSONEncoder(encCfg)
 	} else {
 		dyn.SetLevel(zap.DebugLevel)
 		encCfg.EncodeLevel = zapcore.LowercaseColorLevelEncoder
@@ -142,7 +142,7 @@ func (l *lumberjackWriteSyncer) Write(bs []byte) (int, error) {
 
 // 同步
 func (l *lumberjackWriteSyncer) Sync() error {
-	return nil
+	return l.sync()
 }
 
 func (l *lumberjackWriteSyncer) sync() error {

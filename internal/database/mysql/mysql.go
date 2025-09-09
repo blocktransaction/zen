@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/blocktransaction/zen/common/constant"
@@ -11,65 +12,71 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var (
-	dbengine, dbengineTest *gorm.DB
-)
+var engines = make(map[string]*gorm.DB)
 
 // 初始化数据库连接
 func Setup() {
-	if err := initialize(); err != nil {
-		panic(fmt.Sprintf("mysql prod environment init failed: %v", err))
-	}
-	if err := initializeTest(); err != nil {
-		panic(fmt.Sprintf("mysql test environment init failed: %v", err))
-	}
+	//生产环境
+	initMysql(constant.Prod)
+	//测试环境
+	initMysql(constant.Test)
 }
 
-// 生产环境初始化
-func initialize() (err error) {
+// 连接不同环境的mysql
+func initMysql(env string) {
 	logger := NewLogger(LogConfig{
-		LogFile: config.MysqlConfig.Prod.LogFile,
-		Rotate:  true, // 开启日志轮转
+		Rotate:        true, // 开启日志轮转
+		LogFile:       defaultLogFile(env),
+		EnableMasking: true, // 开启脱敏
 		Config: logger.Config{
-			SlowThreshold: time.Second,
+			SlowThreshold: 200 * time.Millisecond,
 			LogLevel:      logger.Info,
 		},
 	})
 
-	dbengine, err = gorm.Open(mysql.Open(config.MysqlConfig.Prod.Dsn), &gorm.Config{
+	dsn := defaultDsn(env)
+	engine, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
 		PrepareStmt:            true,   // 启用预编译语句
 		SkipDefaultTransaction: true,   // 禁用默认事务
 		Logger:                 logger, // 日志配置
 	})
 
-	return
+	if err != nil {
+		panic(fmt.Errorf("mysql[%s] connect failed: %w", env, err))
+	}
+	engines[env] = engine
+	fmt.Printf("mysql[%s] connected: %s\n", env, cutDsn(dsn))
 }
 
-// 测试环境初始化
-func initializeTest() (err error) {
-	logger := NewLogger(LogConfig{
-		LogFile: config.MysqlConfig.Test.LogFile,
-		Rotate:  true, // 开启日志轮转
-		Config: logger.Config{
-			SlowThreshold: time.Second,
-			LogLevel:      logger.Info,
-		},
-	})
+// 截取mysql [server:port]
+func cutDsn(dsn string) string {
+	start := strings.Index(dsn, "(") + 1
+	end := strings.Index(dsn, ")")
+	return dsn[start:end]
+}
 
-	dbengineTest, err = gorm.Open(mysql.Open(config.MysqlConfig.Test.Dsn), &gorm.Config{
-		PrepareStmt:            true,   // 启用预编译语句
-		SkipDefaultTransaction: true,   // 禁用默认事务
-		Logger:                 logger, // 日志配置
-	})
-	return
+// 默认配置文件（默认：测试）
+func defaultLogFile(env string) string {
+	if env == constant.Prod {
+		return config.MysqlConfig.Prod.LogFile
+	}
+	return config.MysqlConfig.Test.LogFile
+}
+
+// 默认连接串（默认：测试）
+func defaultDsn(env string) string {
+	if env == constant.Prod {
+		return config.MysqlConfig.Prod.Dsn
+	}
+	return config.MysqlConfig.Test.Dsn
 }
 
 // 获取数据库连接
 func GetOrm(env string) *gorm.DB {
-	if env == constant.Prod {
-		return dbengine
+	if engine, ok := engines[env]; ok {
+		return engine
 	}
-	return dbengineTest
+	return engines[config.MysqlConfig.Test.Dsn]
 }
 
 // 获取当前数据库名称

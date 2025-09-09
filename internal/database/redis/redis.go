@@ -7,19 +7,20 @@ import (
 
 	"github.com/blocktransaction/zen/common/constant"
 	"github.com/blocktransaction/zen/config"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 )
 
 var clients = make(map[string]*redis.Client)
 
 // 初始化所有 Redis 客户端
-func Setup() {
-	initRedis(constant.Prod)
-	initRedis(constant.Test)
+func Setup(logger *zap.Logger, logResult bool) {
+	initRedis(constant.Prod, logger, logResult)
+	initRedis(constant.Test, logger, logResult)
 }
 
 // 初始化单个 redis 客户端
-func initRedis(env string) {
+func initRedis(env string, logger *zap.Logger, logResult bool) {
 	// 处理默认值
 	cfg := defaultConfig(env)
 	addr := defaultString(cfg.Addr, "127.0.0.1:6379")
@@ -40,7 +41,7 @@ func initRedis(env string) {
 	if err := cli.Ping(context.Background()).Err(); err != nil {
 		panic(fmt.Errorf("redis[%s] connect failed: %w", env, err))
 	}
-
+	cli.AddHook(NewRedisLogger(NewZapAdapter(logger), logResult))
 	clients[env] = cli
 	fmt.Printf("redis[%s] connected: %s\n", env, addr)
 }

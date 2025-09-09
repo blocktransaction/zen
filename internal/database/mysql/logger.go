@@ -7,24 +7,21 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/blocktransaction/zen/internal/database"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/utils"
-
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-const (
-	// 日志级别
-	Silent logger.LogLevel = iota + 1
-	Error
-	Warn
-	Info
-)
+const defaultMysqlLog = "mysql.log"
 
-const DEFAULT_LOGFILE = "mysql.log"
+// 正则脱敏
+var sensitivePattern = regexp.MustCompile(`(?i)(password|token|secret|mobile|phone)\s*=\s*'[^']*'`)
 
 type LogConfig struct {
 	logger.Config
@@ -35,11 +32,12 @@ type LogConfig struct {
 	MaxAge           int // days
 	Compress         bool
 	AdditionalLogger Loggers
+	EnableMasking    bool // 是否开启参数脱敏
 }
 
 type Loggers []*log.Logger
 
-// FileLogger 文件日志器
+// FileLogger 实现了 gorm logger.Interface
 type FileLogger struct {
 	LogConfig
 	Loggers                             Loggers
@@ -47,35 +45,33 @@ type FileLogger struct {
 	traceStr, traceErrStr, traceWarnStr string
 }
 
-// 设置默认值
 func applyDefaults(cfg *LogConfig) {
 	if cfg.LogFile == "" {
-		cfg.LogFile = DEFAULT_LOGFILE
+		cfg.LogFile = defaultMysqlLog
 	}
 	if cfg.Rotate {
 		if cfg.MaxSize == 0 {
-			cfg.MaxSize = 100 // 默认 100 MB
+			cfg.MaxSize = 100
 		}
 		if cfg.MaxBackups == 0 {
 			cfg.MaxBackups = 7
 		}
 		if cfg.MaxAge == 0 {
-			cfg.MaxAge = 30 // 默认 30 天
+			cfg.MaxAge = 30
 		}
-		// 默认开启压缩
 		if !cfg.Compress {
 			cfg.Compress = true
 		}
 	}
 }
 
-// NewLogger 创建 FileLogger
+// 创建 FileLogger
 func NewLogger(config LogConfig) *FileLogger {
 	applyDefaults(&config)
 
 	loggers := make([]*log.Logger, 0)
 
-	// stdout logger
+	// stdout
 	stdout := os.NewFile(uintptr(syscall.Stdout), "/dev/stdout")
 	consoleLogger := log.New(stdout, "", log.LstdFlags)
 	loggers = append(loggers, consoleLogger)
@@ -86,10 +82,9 @@ func NewLogger(config LogConfig) *FileLogger {
 		_ = os.MkdirAll(logDir, 0755)
 	}
 
-	// 文件 logger
+	// 文件输出
 	var fileOutput *log.Logger
 	if config.Rotate {
-		// 使用 lumberjack 日志轮转
 		rotater := &lumberjack.Logger{
 			Filename:   config.LogFile,
 			MaxSize:    config.MaxSize,
@@ -99,7 +94,6 @@ func NewLogger(config LogConfig) *FileLogger {
 		}
 		fileOutput = log.New(rotater, "", log.LstdFlags)
 	} else {
-		// 普通文件日志
 		logfile, err := os.OpenFile(config.LogFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY|os.O_SYNC, 0644)
 		if err != nil {
 			panic(fmt.Sprintf("open logfile error: %v", err))
@@ -108,7 +102,7 @@ func NewLogger(config LogConfig) *FileLogger {
 	}
 	loggers = append(loggers, fileOutput)
 
-	// 附加日志器
+	// 附加 logger
 	if len(config.AdditionalLogger) > 0 {
 		loggers = append(loggers, config.AdditionalLogger...)
 	}
@@ -116,79 +110,89 @@ func NewLogger(config LogConfig) *FileLogger {
 	return &FileLogger{
 		LogConfig:    config,
 		Loggers:      loggers,
-		infoStr:      "%s\n[info] ",
-		warnStr:      "%s\n[warn] ",
-		errStr:       "%s\n[error] ",
-		traceStr:     "%s\n[%.3fms] [rows:%v] %s",
-		traceWarnStr: "%s %s\n[%.3fms] [rows:%v] %s",
-		traceErrStr:  "%s %s\n[%.3fms] [rows:%v] %s",
+		infoStr:      "[INFO] line：%s | traceId：%s | %s",
+		warnStr:      "[WARN] line：%s | traceId：%s | %s",
+		errStr:       "[ERROR] line：%s | traceId：%s| %s",
+		traceStr:     "[SQL] line：%s | traceId：%s | latency：%.4fms | rows：%v | sql：%s",
+		traceWarnStr: "[SQL-WARN] line：%s | traceId：%s | latency：%.4fms | rows：v | error：%s | sql：%s",
+		traceErrStr:  "[SQL-ERR] line：%s | traceId：%s | latency：%.4fms | rows：%v | error： %s | sql：%s",
 	}
 }
 
-func (l *FileLogger) printf(msg string, data ...interface{}) {
+// --- 通用方法 ---
+
+// 参数脱敏
+func (l *FileLogger) maskSQL(sql string) string {
+	if l.EnableMasking {
+		return sensitivePattern.ReplaceAllString(sql, "$1='***'")
+	}
+	return sql
+}
+
+func (l *FileLogger) printf(ctx context.Context, msg string, data ...interface{}) {
+	traceId := database.ExtractTraceID(ctx)
+	lineFile := utils.FileWithLineNum()
+
+	args := append([]interface{}{lineFile[strings.LastIndex(lineFile, "/"):], traceId}, data...)
 	for _, logger := range l.Loggers {
-		logger.Printf(msg, data...)
+		logger.Printf(msg, args...)
 	}
 }
+
+// --- gorm.Logger 接口 ---
 
 func (l *FileLogger) LogMode(level logger.LogLevel) logger.Interface {
 	l.LogLevel = level
 	return l
 }
 
-func (l *FileLogger) logf(level logger.LogLevel, tmpl string, msg string, data ...interface{}) {
-	if l.LogLevel >= level {
-		l.printf(tmpl+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
-	}
-}
-
 func (l *FileLogger) Info(ctx context.Context, msg string, data ...interface{}) {
-	l.logf(Info, l.infoStr, msg, data...)
+	l.printf(ctx, l.infoStr, append([]interface{}{msg}, data...)...)
 }
 
 func (l *FileLogger) Warn(ctx context.Context, msg string, data ...interface{}) {
-	l.logf(Warn, l.warnStr, msg, data...)
+	l.printf(ctx, l.warnStr, append([]interface{}{msg}, data...)...)
 }
 
 func (l *FileLogger) Error(ctx context.Context, msg string, data ...interface{}) {
-	l.logf(Error, l.errStr, msg, data...)
+	l.printf(ctx, l.errStr, append([]interface{}{msg}, data...)...)
 }
 
 // Trace 打印 SQL
 func (l *FileLogger) Trace(ctx context.Context, begin time.Time, fc func() (sql string, rowsAffected int64), err error) {
-	if l.LogLevel <= Silent {
+	if l.LogLevel <= logger.Silent {
 		return
 	}
-
 	elapsed := time.Since(begin)
 	ms := float64(elapsed.Nanoseconds()) / 1e6
 
 	switch {
-	case err != nil && l.LogLevel >= Error &&
+	case err != nil && l.LogLevel >= logger.Error &&
 		(!errors.Is(err, logger.ErrRecordNotFound) || !l.IgnoreRecordNotFoundError):
 
 		sql, rows := fc()
-		if rows == -1 {
-			l.printf(l.traceErrStr, utils.FileWithLineNum(), err, ms, "-", sql)
-		} else {
-			l.printf(l.traceErrStr, utils.FileWithLineNum(), err, ms, rows, sql)
-		}
+		l.printf(ctx, l.traceErrStr, ms, rows, err, l.maskSQL(sql))
 
-	case l.SlowThreshold != 0 && elapsed > l.SlowThreshold && l.LogLevel >= Warn:
+	case l.SlowThreshold != 0 && elapsed > l.SlowThreshold && l.LogLevel >= logger.Warn:
 		sql, rows := fc()
-		slowLog := fmt.Sprintf("SLOW SQL >= %v", l.SlowThreshold)
-		if rows == -1 {
-			l.printf(l.traceWarnStr, utils.FileWithLineNum(), slowLog, ms, "-", sql)
-		} else {
-			l.printf(l.traceWarnStr, utils.FileWithLineNum(), slowLog, ms, rows, sql)
-		}
+		l.printf(ctx, l.traceWarnStr, ms, rows, "SLOW SQL", l.maskSQL(sql))
 
-	case l.LogLevel == Info:
+	case l.LogLevel == logger.Info:
 		sql, rows := fc()
-		if rows == -1 {
-			l.printf(l.traceStr, utils.FileWithLineNum(), ms, "-", sql)
-		} else {
-			l.printf(l.traceStr, utils.FileWithLineNum(), ms, rows, sql)
-		}
+		l.printf(ctx, l.traceStr, ms, rows, l.maskSQL(sql))
 	}
+}
+
+// --- 业务日志接口（方便手动调用） ---
+
+func (l *FileLogger) Infof(ctx context.Context, format string, args ...interface{}) {
+	l.printf(ctx, l.infoStr, fmt.Sprintf(format, args...))
+}
+
+func (l *FileLogger) Errorf(ctx context.Context, format string, args ...interface{}) {
+	l.printf(ctx, l.errStr, fmt.Sprintf(format, args...))
+}
+
+func (l *FileLogger) Warnf(ctx context.Context, format string, args ...interface{}) {
+	l.printf(ctx, l.warnStr, fmt.Sprintf(format, args...))
 }

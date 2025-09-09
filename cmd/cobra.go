@@ -35,7 +35,7 @@ var rootCmd = &cobra.Command{
 
 // init
 func init() {
-	rootCmd.AddCommand(api.StartCmd)
+	rootCmd.AddCommand(api.StartCmd, migrateCmd)
 }
 
 // 提示

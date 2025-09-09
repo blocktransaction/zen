@@ -61,6 +61,7 @@ func initialize(filePath string) {
 	viper.SetConfigType("toml")
 	viper.AddConfigPath(filePath)
 
+	// fmt.Println("config----")
 	//3、启用环境变量读取
 	viper.AutomaticEnv()
 	//读取config

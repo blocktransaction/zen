@@ -131,6 +131,7 @@ func (a *Api) defaultLanguage() string {
 	if lang == "" {
 		lang = i18n.En
 	}
+	a.Language = lang
 	return lang
 }
 
@@ -139,6 +140,7 @@ func (a *Api) defaultEnv() string {
 	if env == "" {
 		env = constant.Test
 	}
+	a.Env = env
 	return env
 }
 

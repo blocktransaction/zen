@@ -10,8 +10,8 @@ logFilePath = "./log"
 logFileName = "access.log"
 logFileMaxSize = 500                                        #mb
 logFileMaxAge = 15                                          #day
-i18nFilePath = "../../../../common/language"
-i18nSupportLanguage = ["zh-cn", "zh", "en","es"]
+i18nFilePath = "./common/language"
+i18nSupportLanguage = ["zh-cn","zh","en"]
 defaultLang = "zh"
 templateFile = "./template.json"
 jwtExpiresAt = 48                                            #jwt有效期(单位：小时)
@@ -32,3 +32,24 @@ allowPathPrefixSkipper = [
     "/api/v1/user/mobile/password/forget",
     "/api/v1/user/mail/password/forget",
     "/api/v1/card/speedpay/callback"]
+
+
+[mysql]
+[mysql.prod]                                                      #mysql数据配置
+dsn = "root:123456@(192.168.13.206:3307)/admin_wikitrade?charset=utf8mb4&parseTime=True&loc=Local"                                                         #数据源地址
+logFile = "mysql/mysql.log"
+[mysql.test]                                                     #mysql数据配置
+dsn = "root:123456@(192.168.13.206:3307)/admin_wikitrade?charset=utf8mb4&parseTime=True&loc=Local"                                                         #数据源地址
+logFile = "mysql_test/mysql.log"
+
+[redis]
+[redis.prod]                                                  #redis数据配置
+addr = "127.0.0.1:6379"                                                     #地址
+password = ""                                                 #密码
+dialTimeout = 10                                              #超时时间
+poolSize = 20                                                 #连接池大小
+[redis.test]
+addr = "127.0.0.1:6379"                                                     #地址
+password = ""                                                 #密码
+dialTimeout = 10                                              #超时时间
+poolSize = 20                                                 #连接池大小

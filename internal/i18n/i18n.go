@@ -11,7 +11,7 @@ import (
 	"github.com/blocktransaction/zen/config"
 )
 
-// ✅ 特性总结
+// 特性总结
 // 全局单例，只加载一次翻译。
 // 线程安全，支持并发读取和写入。
 // Fluent 链式 API，Service 层写法简洁：.WithLang(ctx, lang).Msg("code")。
@@ -23,6 +23,11 @@ import (
 
 // ----------------- Manager -----------------
 
+var (
+	once    sync.Once
+	manager *Manager
+)
+
 type Manager struct {
 	mu        sync.RWMutex
 	messages  map[string]map[string]string
@@ -30,12 +35,6 @@ type Manager struct {
 	supported []string
 	lang      string // 链式语言存储
 }
-
-var (
-	once    sync.Once
-	manager *Manager
-)
-
 type ctxKey string
 
 const langKey ctxKey = "lang"
