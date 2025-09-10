@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/blocktransaction/zen/app/dao/user"
+	"github.com/blocktransaction/zen/app/handler/api/httpreq"
 	"github.com/blocktransaction/zen/app/model"
 	"github.com/blocktransaction/zen/app/service"
 )
@@ -26,15 +27,14 @@ func NewUserService(ctx context.Context, dao user.UserDao) UserService {
 }
 
 func (s *userServiceImpl) CreateUser() (bool, error) {
-	// redis.
-	// redisCli := redis.NewRedisCli(s.base.Ctx, s.base.Env())
-	// redisCli.Get("test00111")
-	// return s.base.TraceId()
-
 	info := model.User{
 		Name:      "zorro",
 		CreatedAt: time.Now().Unix(),
 	}
 
 	return s.userDao.Create(&info)
+}
+
+func (s *userServiceImpl) ListUser(req *httpreq.FindReq) ([]model.User, int64, error) {
+	return s.userDao.Find(req)
 }

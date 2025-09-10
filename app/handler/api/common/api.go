@@ -11,17 +11,9 @@ import (
 
 	"github.com/blocktransaction/zen/common/constant"
 	"github.com/blocktransaction/zen/internal/i18n"
-	"github.com/blocktransaction/zen/internal/logx"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
-)
-
-const (
-	// 在这里同样可以定义常量
-	defaultSize = 20
 )
 
 // 统一响应结构
@@ -43,20 +35,15 @@ type EmptyStruct struct{}
 
 // api
 type Api struct {
-	Context       *gin.Context    //gin上下文
-	Logger        *zap.Logger     //日志
-	Orm           *gorm.DB        //orm
+	ginContext    *gin.Context    //gin上下文
+	commonContext context.Context //公共上下文
 	Errors        error           //错误信息
-	CommonContext context.Context //公共上下文
 
 	//api header info
-	Language      string //语言
-	Authorization string //token
-	XSource       string
-	Env           string
-	UserId        string
-	validate      *validator.Validate
-	Basicdata     string
+	language string //语言
+	env      string
+	userId   int64
+	validate *validator.Validate
 }
 
 // Bind 参数校验
@@ -71,10 +58,10 @@ func (a *Api) Bind(d interface{}, bindings ...binding.Binding) *Api {
 		var err error
 		if b == nil {
 			// 当绑定为nil时，尝试绑定URI参数
-			err = a.Context.ShouldBindUri(d)
+			err = a.ginContext.ShouldBindUri(d)
 		} else {
 			// 使用指定的绑定方式
-			err = a.Context.ShouldBindWith(d, b)
+			err = a.ginContext.ShouldBindWith(d, b)
 		}
 
 		if err != nil {
@@ -109,58 +96,62 @@ func (a *Api) AddError(err error) {
 
 // 上下文 处理对应公共头参数
 func (a *Api) WithContext(c *gin.Context) *Api {
-	a.Context = c
+	a.ginContext = c
 
-	userId := c.GetString(constant.UserId)
-	env := a.defaultEnv()
-	lang := a.defaultLanguage()
-
-	a.CommonContext = context.Background()
-	a.CommonContext = context.WithValue(a.CommonContext, constant.UserIdKey, userId)
-	a.CommonContext = context.WithValue(a.CommonContext, constant.EnvKey, env)
-	a.CommonContext = context.WithValue(a.CommonContext, constant.LangKey, lang)
-	a.CommonContext = context.WithValue(a.CommonContext, constant.TraceIdKey, c.GetString(constant.TraceId))
+	a.commonContext = context.Background()
+	a.commonContext = context.WithValue(a.commonContext, constant.UserIdKey, a.defaultUserId())
+	a.commonContext = context.WithValue(a.commonContext, constant.EnvKey, a.defaultEnv())
+	a.commonContext = context.WithValue(a.commonContext, constant.LangKey, a.defaultLanguage())
+	a.commonContext = context.WithValue(a.commonContext, constant.TraceIdKey, c.GetString(constant.TraceId))
 
 	a.validate = validator.New(validator.WithRequiredStructEnabled())
 
 	return a
 }
 
+func (a *Api) defaultUserId() int64 {
+	userId := a.ginContext.GetInt64(constant.UserId)
+	a.userId = userId
+	return userId
+}
+
 func (a *Api) defaultLanguage() string {
-	lang := a.Context.GetHeader(constant.Language)
+	lang := a.ginContext.GetHeader(constant.Language)
 	if lang == "" {
 		lang = i18n.En
 	}
-	a.Language = lang
+	a.language = lang
 	return lang
 }
 
 func (a *Api) defaultEnv() string {
-	env := a.Context.GetHeader(constant.Env)
+	env := a.ginContext.GetHeader(constant.Env)
 	if env == "" {
 		env = constant.Test
 	}
-	a.Env = env
+	a.env = env
 	return env
 }
 
-// MakeOrm 设置Orm DB
-// func (a *Api) MakeOrm() *Api {
-// 	a.Orm = mysql.GetOrm(a.Env)
-// 	return a
-// }
-
-// make logger
-func (a *Api) WithLogger() *Api {
-	a.Logger = logx.Logger()
-	return a
+// 获取上下文
+func (a *Api) GetContext() context.Context {
+	return a.commonContext
 }
 
-// 获取userid
-// func (a *Api) GetUserId() int64 {
-// 	userId, _ := strconv.ParseInt(a.UserId, 10, 64)
-// 	return userId
-// }
+// 获取当前语言
+func (a *Api) GetLang() string {
+	return a.language
+}
+
+// 获取当前环境
+func (a *Api) GetEnv() string {
+	return a.env
+}
+
+// 获取用户id
+func (a *Api) GetUserId() int64 {
+	return a.userId
+}
 
 // 统一的响应发送方法
 func (a *Api) sendResponse(code interface{}, msg string, data interface{}) {
@@ -189,8 +180,8 @@ func (a *Api) sendResponse(code interface{}, msg string, data interface{}) {
 		Data: data,
 	}
 
-	a.Context.JSON(http.StatusOK, response)
-	a.Context.Abort()
+	a.ginContext.JSON(http.StatusOK, response)
+	a.ginContext.Abort()
 }
 
 // 成功响应
@@ -246,29 +237,4 @@ func parseErrorCodeFlexible(code string) interface{} {
 		return parsed
 	}
 	return code
-}
-
-// 分页
-func (a *Api) MakePagination(pageSize, pageIndex *int) {
-	pagination(pageSize, pageIndex)
-}
-
-// 分页处理
-func pagination(size, index *int) {
-	// 检查指针是否为nil，防止panic
-	if size == nil || index == nil {
-		return
-	}
-
-	finalSize := *size
-	if finalSize <= 0 || finalSize > defaultSize {
-		finalSize = defaultSize
-	}
-	*size = finalSize
-
-	finalOffset := 0
-	if *index > 1 { // 页码从1开始，大于1才需要计算偏移
-		finalOffset = (*index - 1) * finalSize
-	}
-	*index = finalOffset
 }

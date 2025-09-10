@@ -110,12 +110,12 @@ func NewLogger(config LogConfig) *FileLogger {
 	return &FileLogger{
 		LogConfig:    config,
 		Loggers:      loggers,
-		infoStr:      "[INFO] line：%s | traceId：%s | %s",
-		warnStr:      "[WARN] line：%s | traceId：%s | %s",
-		errStr:       "[ERROR] line：%s | traceId：%s| %s",
-		traceStr:     "[SQL] line：%s | traceId：%s | latency：%.4fms | rows：%v | sql：%s",
-		traceWarnStr: "[SQL-WARN] line：%s | traceId：%s | latency：%.4fms | rows：v | error：%s | sql：%s",
-		traceErrStr:  "[SQL-ERR] line：%s | traceId：%s | latency：%.4fms | rows：%v | error： %s | sql：%s",
+		infoStr:      "[INFO] caller：%s | traceId：%s | %s",
+		warnStr:      "[WARN] caller：%s | traceId：%s | %s",
+		errStr:       "[ERROR] caller：%s | traceId：%s| %s",
+		traceStr:     "[SQL] caller：%s | traceId：%s | latency：%.4fms | rows：%v | sql：%s",
+		traceWarnStr: "[SQL-WARN] caller：%s | traceId：%s | latency：%.4fms | rows：v | error：%s | sql：%s",
+		traceErrStr:  "[SQL-ERR] caller：%s | traceId：%s | latency：%.4fms | rows：%v | error： %s | sql：%s",
 	}
 }
 
