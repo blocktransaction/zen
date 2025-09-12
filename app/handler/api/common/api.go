@@ -11,9 +11,11 @@ import (
 
 	"github.com/blocktransaction/zen/common/constant"
 	"github.com/blocktransaction/zen/internal/i18nx"
+	"github.com/blocktransaction/zen/internal/logx"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
+	"go.uber.org/zap"
 )
 
 // 统一响应结构
@@ -35,15 +37,17 @@ type EmptyStruct struct{}
 
 // api
 type Api struct {
+	Errors error //错误信息
+
 	ginContext    *gin.Context    //gin上下文
 	commonContext context.Context //公共上下文
-	Errors        error           //错误信息
+	logger        *zap.Logger
+	validate      *validator.Validate
 
 	//api header info
 	language string //语言
 	env      string
 	userId   int64
-	validate *validator.Validate
 }
 
 // Bind 参数校验
@@ -92,6 +96,12 @@ func (a *Api) AddError(err error) {
 		return
 	}
 	a.Errors = errors.Join(a.Errors, err)
+}
+
+// 设置日志
+func (a *Api) WithLogger() *Api {
+	a.logger = logx.Logger()
+	return a
 }
 
 // 上下文 处理对应公共头参数
@@ -151,6 +161,11 @@ func (a *Api) GetEnv() string {
 // 获取用户id
 func (a *Api) GetUserId() int64 {
 	return a.userId
+}
+
+// 获取日志句柄
+func (a *Api) Logger() *zap.Logger {
+	return a.logger
 }
 
 // 统一的响应发送方法

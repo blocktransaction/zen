@@ -7,6 +7,7 @@ import (
 	"github.com/blocktransaction/zen/app/service/user"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"go.uber.org/zap"
 )
 
 type UserApi struct {
@@ -17,7 +18,8 @@ type UserApi struct {
 func (api UserApi) GetUserInfo(c *gin.Context) {
 	var req httpreq.FindReq
 
-	if err := api.WithContext(c).
+	if err := api.WithLogger().
+		WithContext(c).
 		Bind(&req, binding.Query).Errors; err != nil {
 		api.Error("1000000")
 		return
@@ -26,6 +28,7 @@ func (api UserApi) GetUserInfo(c *gin.Context) {
 	userService := user.NewUserService(api.GetContext(), userdao.NewUserImplDao(api.GetContext()))
 	list, count, err := userService.ListUser(&req)
 	if err != nil {
+		api.Logger().Error("ListUser error", zap.Error(err))
 		api.Error("2000002")
 		return
 	}
