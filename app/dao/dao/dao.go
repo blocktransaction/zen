@@ -84,7 +84,6 @@ func (d *DAO[T]) clone() *DAO[T] {
 }
 
 // --- 链式构建 ---
-
 func (d *DAO[T]) Select(fields ...string) *DAO[T] {
 	nd := d.clone()
 	nd.selects = append(nd.selects, fields...)
@@ -115,14 +114,14 @@ func (d *DAO[T]) WithDeleted() *DAO[T] {
 	return nd
 }
 
-// where
+// where条件
 func (d *DAO[T]) Where(field, op string, value any) *DAO[T] {
 	nd := d.clone()
 	nd.conds = append(nd.conds, Condition{Field: field, Op: normalizeOp(op), Value: value})
 	return nd
 }
 
-// wheremap
+// wheremap条件映射
 func (d *DAO[T]) WhereMap(m map[string]any) *DAO[T] {
 	nd := d.clone()
 	keys := make([]string, 0, len(m))
@@ -209,7 +208,7 @@ func (d *DAO[T]) First(out *T) error {
 }
 
 // count
-func (d *DAO[T]) Num() (int64, error) {
+func (d *DAO[T]) count() (int64, error) {
 	if d.err != nil {
 		return 0, d.err
 	}
@@ -402,7 +401,7 @@ func (d *DAO[T]) PaginateWithCache(ctx context.Context, table string, page, page
 // 简单 total 缓存：以条件/排序/选择做指纹。表写入后请外部清理相关 key 或使用表版本号策略（可按需扩展）。
 func (d *DAO[T]) cachedCount(ctx context.Context, table string, ttl time.Duration) (int64, error) {
 	if d.rdb == nil {
-		return d.Num()
+		return d.count()
 	}
 	sqlStr, args := d.renderWhereFingerprint() // 指纹化
 	key := "count:" + table + ":" + sqlStr + ":" + fmt.Sprint(args...)
@@ -413,7 +412,7 @@ func (d *DAO[T]) cachedCount(ctx context.Context, table string, ttl time.Duratio
 		return v, nil
 	}
 	// 走 DB
-	cnt, err := d.Num()
+	cnt, err := d.count()
 	if err != nil {
 		return 0, err
 	}

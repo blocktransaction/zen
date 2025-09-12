@@ -10,7 +10,7 @@ import (
 	"strconv"
 
 	"github.com/blocktransaction/zen/common/constant"
-	"github.com/blocktransaction/zen/internal/i18n"
+	"github.com/blocktransaction/zen/internal/i18nx"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
@@ -118,7 +118,7 @@ func (a *Api) defaultUserId() int64 {
 func (a *Api) defaultLanguage() string {
 	lang := a.ginContext.GetHeader(constant.Language)
 	if lang == "" {
-		lang = i18n.En
+		lang = i18nx.En
 	}
 	a.language = lang
 	return lang
@@ -191,7 +191,7 @@ func (a *Api) Success(msg string, data interface{}) {
 
 // 带语言代码的成功响应
 func (a *Api) SuccessWithCode(code string, data interface{}) {
-	msg := i18n.GetManager().GetMessage(code)
+	msg := i18nx.GetManager().WithLang(a.commonContext, a.language).GetMessage(code)
 	a.sendResponse(0, msg, data)
 }
 
@@ -208,7 +208,7 @@ func (a *Api) SuccessWithPagination(msg string, count, data interface{}, pageSiz
 
 // 错误响应
 func (a *Api) Error(code string) {
-	msg := i18n.GetManager().GetMessage(code)
+	msg := i18nx.GetManager().WithLang(a.commonContext, i18nx.Zh).GetMessage(code)
 	a.sendResponse(parseErrorCodeFlexible(code), msg, EmptyStruct{})
 }
 
@@ -219,14 +219,14 @@ func (a *Api) ErrorWithMsg(code, msg string) {
 
 // 带语言代码和自定义消息的错误响应
 func (a *Api) ErrorWithCodeAndMsg(code, customMsg string) {
-	baseMsg := i18n.GetManager().GetMessage(code)
+	baseMsg := i18nx.GetManager().WithLang(a.commonContext, i18nx.Zh).GetMessage(code)
 	msg := fmt.Sprintf("%s\nerror: %s", baseMsg, customMsg)
 	a.sendResponse(parseErrorCodeFlexible(code), msg, EmptyStruct{})
 }
 
 // 带参数的错误响应
 func (a *Api) ErrorWithParams(code string, params ...interface{}) {
-	baseMsg := i18n.GetManager().GetMessage(code)
+	baseMsg := i18nx.GetManager().WithLang(a.commonContext, i18nx.Zh).GetMessage(code)
 	msg := fmt.Sprintf(baseMsg, params...)
 	a.sendResponse(parseErrorCodeFlexible(code), msg, EmptyStruct{})
 }

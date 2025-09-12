@@ -36,7 +36,7 @@ func (d *userImplDao) Find(req *httpreq.FindReq) ([]model.User, int64, error) {
 		count int64
 	)
 
-	if err := d.dao.Where("name", "=", "zorro").
+	if err := d.dao.Eq("name", "zorro").
 		Count(&count).
 		OrderBy("created_at DESC").
 		Paginate(req.PageIndex, req.PageSize).

@@ -1,4 +1,4 @@
-package i18n
+package i18nx
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/blocktransaction/zen/common/constant"
 	"github.com/blocktransaction/zen/config"
 )
 
@@ -35,18 +36,15 @@ type Manager struct {
 	supported []string
 	lang      string // 链式语言存储
 }
-type ctxKey string
-
-const langKey ctxKey = "lang"
 
 func Setup() {
-	GetManager().Setup(
+	GetManager().setup(
 		config.ApplicationConfig.I18nFilePath,
 		config.ApplicationConfig.I18nSupportLanguage,
 		config.ApplicationConfig.DefaultLang)
 }
 
-// ----------------- 单例 -----------------
+// 单例
 func GetManager() *Manager {
 	once.Do(func() {
 		manager = &Manager{
@@ -58,9 +56,8 @@ func GetManager() *Manager {
 	return manager
 }
 
-// ----------------- 初始化 -----------------
-
-func (m *Manager) Setup(path string, supported []string, defaultLang string) error {
+// 初始化
+func (m *Manager) setup(path string, supported []string, defaultLang string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -69,8 +66,7 @@ func (m *Manager) Setup(path string, supported []string, defaultLang string) err
 	return m.loadFiles(path, supported)
 }
 
-// ----------------- 动态加载/更新 -----------------
-
+// 动态加载/更新
 func (m *Manager) LoadFiles(path string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -106,8 +102,6 @@ func (m *Manager) loadFiles(path string, supported []string) error {
 	return nil
 }
 
-// ----------------- 单条 key 更新 -----------------
-
 // Update 更新某个语言的单条翻译
 func (m *Manager) Update(lang, key, value string) {
 	lang = normalizeLang(lang)
@@ -120,8 +114,7 @@ func (m *Manager) Update(lang, key, value string) {
 	m.messages[lang][key] = value
 }
 
-// ----------------- 链式语言 -----------------
-
+// 链式语言
 func (m *Manager) WithLang(ctx context.Context, lang string) *Manager {
 	if ctx != nil {
 		lang = getLangFromContext(ctx, lang)
@@ -131,7 +124,7 @@ func (m *Manager) WithLang(ctx context.Context, lang string) *Manager {
 }
 
 func getLangFromContext(ctx context.Context, defaultLang string) string {
-	if v := ctx.Value(langKey); v != nil {
+	if v := ctx.Value(constant.LangKey); v != nil {
 		if l, ok := v.(string); ok && l != "" {
 			return normalizeLang(l)
 		}
@@ -139,14 +132,11 @@ func getLangFromContext(ctx context.Context, defaultLang string) string {
 	return normalizeLang(defaultLang)
 }
 
-// ----------------- Fluent API -----------------
-
 func (m *Manager) Msg(code string) string {
 	return m.GetMessage(code)
 }
 
-// ----------------- 获取翻译 -----------------
-
+// 获取翻译
 func (m *Manager) GetMessage(code string) string {
 	lang := m.lang
 	if lang == "" {
@@ -156,41 +146,20 @@ func (m *Manager) GetMessage(code string) string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	for _, l := range fallbackChain(lang, m.defLang) {
-		if msgs, ok := m.messages[l]; ok {
-			if msg, exists := msgs[code]; exists {
-				return msg
-			}
+	if msgs, ok := m.messages[lang]; ok {
+		if msg, exists := msgs[code]; exists {
+			return msg
 		}
 	}
 	return code
 }
 
-// ----------------- 请求级语言 -----------------
-
+// 请求级语言
 func WithCtxLang(ctx context.Context, lang string) context.Context {
-	return context.WithValue(ctx, langKey, normalizeLang(lang))
+	return context.WithValue(ctx, constant.LangKey, normalizeLang(lang))
 }
 
-// ----------------- 内部工具 -----------------
-
-func fallbackChain(lang, defLang string) []string {
-	var chain []string
-	lang = normalizeLang(lang)
-	if strings.Contains(lang, "-") {
-		parts := strings.Split(lang, "-")
-		chain = append(chain, lang, parts[0])
-	} else {
-		chain = append(chain, lang)
-	}
-
-	if defLang != lang {
-		chain = append(chain, normalizeLang(defLang))
-	}
-
-	return chain
-}
-
+// 内部工具
 func normalizeLang(lang string) string {
 	return strings.ToLower(strings.ReplaceAll(lang, "_", "-"))
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/blocktransaction/zen/config"
 	"github.com/blocktransaction/zen/internal/database/mysql"
 	"github.com/blocktransaction/zen/internal/database/redis"
-	"github.com/blocktransaction/zen/internal/i18n"
+	"github.com/blocktransaction/zen/internal/i18nx"
 	"github.com/blocktransaction/zen/internal/logx"
 	"github.com/spf13/cobra"
 )
@@ -44,7 +44,7 @@ func init() {
 func setup() {
 	config.Setup(
 		configPath,
-		i18n.Setup,
+		i18nx.Setup,
 		mysql.Setup,
 	)
 }

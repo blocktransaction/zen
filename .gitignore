@@ -26,11 +26,12 @@ go.work.sum
 
 # env file
 .env
-
-
+mysql/
+mysql_test/
 log/
+.vscode/
+
 
 *.log
 # Editor/IDE
 .idea/
-.vscode/
