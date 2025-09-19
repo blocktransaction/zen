@@ -18,8 +18,8 @@ func main() {
 
 	// Define a reusable retrier configuration for our API calls
 	apiRetrier := retryx.NewRetrier[string](
-		retryx.WithMaxRetries[string](4),
-		retryx.WithInitialDelay[string](100*time.Millisecond),
+		retryx.WithMaxRetries[string](10),
+		retryx.WithInitialDelay[string](10*time.Millisecond),
 	)
 
 	// Submit 20 tasks to the pool

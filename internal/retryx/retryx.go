@@ -74,6 +74,7 @@ func (r *Retrier[T]) Do(ctx context.Context, task func() (T, error)) (T, error) 
 		if r.jitterFactor > 0 {
 			jitter := r.rand.Float64() * r.jitterFactor // [0, jitterFactor]
 			nextDelay += time.Duration(float64(nextDelay) * jitter)
+			fmt.Println("nextDelay--", nextDelay)
 		}
 		delay = nextDelay
 

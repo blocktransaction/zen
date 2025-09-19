@@ -7,7 +7,7 @@ import (
 	"github.com/blocktransaction/zen/app/handler/api/httpreq"
 	"github.com/blocktransaction/zen/app/model"
 	"github.com/blocktransaction/zen/common/constant"
-	"github.com/blocktransaction/zen/internal/database/mysql"
+	"github.com/blocktransaction/zen/internal/database/mysql/gormx"
 )
 
 type userImplDao struct {
@@ -17,7 +17,7 @@ type userImplDao struct {
 func NewUserImplDao(ctx context.Context) UserDao {
 	env := ctx.Value(constant.EnvKey).(string)
 	return &userImplDao{
-		dao: dao.NewDAO[model.User](ctx, mysql.GetOrm(env)),
+		dao: dao.NewDAO[model.User](ctx, gormx.GetOrm(env)),
 	}
 }
 

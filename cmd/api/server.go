@@ -11,7 +11,7 @@ import (
 
 	"github.com/blocktransaction/zen/app/router"
 	"github.com/blocktransaction/zen/config"
-	"github.com/blocktransaction/zen/internal/database/mysql"
+	"github.com/blocktransaction/zen/internal/database/mysql/gormx"
 	"github.com/blocktransaction/zen/internal/database/redis"
 	"github.com/blocktransaction/zen/internal/i18nx"
 	"github.com/blocktransaction/zen/internal/logx"
@@ -45,7 +45,7 @@ func setup() {
 	config.Setup(
 		configPath,
 		i18nx.Setup,
-		mysql.Setup,
+		gormx.Setup,
 	)
 }
 
