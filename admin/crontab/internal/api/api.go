@@ -55,6 +55,7 @@ func (a *API) handleAdd(w http.ResponseWriter, r *http.Request) {
 // 列表
 func (a *API) handleList(w http.ResponseWriter, r *http.Request) {
 	jobs, _ := a.store.ListJobs(context.Background())
+	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(jobs)
 }
 

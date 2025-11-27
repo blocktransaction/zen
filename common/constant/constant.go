@@ -14,11 +14,11 @@ const (
 	TraceId       = "traceID"
 )
 
-type CtxKey string
+type ctxKey string
 
 const (
-	UserIdKey  CtxKey = "userId"
-	EnvKey     CtxKey = "env"
-	LangKey    CtxKey = "language"
-	TraceIdKey CtxKey = "traceID"
+	CtxKeyUserId ctxKey = "userId"
+	CtxKeyEnv    ctxKey = "env"
+	CtxKeyLang   ctxKey = "lang"
+	CtxKeyTrace  ctxKey = "traceID"
 )

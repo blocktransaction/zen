@@ -26,8 +26,8 @@ go.work.sum
 
 # env file
 .env
-mysql/
-mysql_test/
+mysql/*.log
+mysql_test/*.log
 log/
 .vscode/
 

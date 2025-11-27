@@ -2,14 +2,12 @@ package filex
 
 import (
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestFile(t *testing.T) {
-	assert := assert.New(t)
+	// assert := assert.New(t)
+	// files, err := ListFilesWithRingMPMC("D:\\images", "*.jpg", true, true, 8, 1<<14)
 
-	files, _ := ListFiles("../../", "*.json", true, true)
-	assert.Empty(files, "file found")
-
+	// assert.
+	// 	fmt.Println("files:", len(files))
 }

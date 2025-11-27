@@ -15,7 +15,7 @@ type userImplDao struct {
 }
 
 func NewUserImplDao(ctx context.Context) UserDao {
-	env := ctx.Value(constant.EnvKey).(string)
+	env := ctx.Value(constant.CtxKeyEnv).(string)
 	return &userImplDao{
 		dao: dao.NewDAO[model.User](ctx, gormx.GetOrm(env)),
 	}

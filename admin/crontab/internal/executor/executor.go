@@ -34,6 +34,7 @@ func (e *Executor) Execute(ctx context.Context, j *store.Job) error {
 	}
 	// ensure record persisted at end
 	defer func() {
+		
 		_ = e.store.InsertExec(context.Background(), rec)
 	}()
 

@@ -15,6 +15,7 @@ import (
 	"github.com/blocktransaction/zen/internal/database/redis"
 	"github.com/blocktransaction/zen/internal/i18nx"
 	"github.com/blocktransaction/zen/internal/logx"
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
 )
 
@@ -47,19 +48,20 @@ func setup() {
 		i18nx.Setup,
 		gormx.Setup,
 	)
+	i18nx.GetManager().SetFsEvent(func(event fsnotify.Event) {
+		fmt.Println("file changed:", event.Name, event.Op)
+	})
 }
 
 // 运行
 func run() error {
 	//初始化日志
-	zapLog := logx.NewLogger(
-		logx.WithLogFileName(config.ApplicationConfig.LogFileName),
-		logx.WithLogFilePath(config.ApplicationConfig.LogFilePath),
-		logx.WithSerivceName(config.ApplicationConfig.LogName),
-		logx.WithLogFileMaxSize(config.ApplicationConfig.LogFileMaxSize),
-		logx.WithLogLogFileMaxAge(config.ApplicationConfig.LogFileMaxAge),
+	zapLog := logx.Init(
+		config.ApplicationConfig.LogName,
+		config.ApplicationConfig.LogFilePath,
+		true,
 	)
-
+	// logx.NewAsyncLogger(zapLog, 1000)
 	//redis初始化，且日志允许输出结果
 	redis.Setup(zapLog, true)
 

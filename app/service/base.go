@@ -14,28 +14,28 @@ type BaseService struct {
 }
 
 func (s *BaseService) TraceId() string {
-	if val := s.Ctx.Value(constant.TraceIdKey); val != nil {
+	if val := s.Ctx.Value(constant.CtxKeyTrace); val != nil {
 		return val.(string)
 	}
 	return ""
 }
 
 func (s *BaseService) UserId() int64 {
-	if val := s.Ctx.Value(constant.UserIdKey); val != nil {
+	if val := s.Ctx.Value(constant.CtxKeyUserId); val != nil {
 		return val.(int64)
 	}
 	return 0
 }
 
 func (s *BaseService) Env() string {
-	if val := s.Ctx.Value(constant.EnvKey); val != nil {
+	if val := s.Ctx.Value(constant.CtxKeyEnv); val != nil {
 		return val.(string)
 	}
 	return ""
 }
 
 func (s *BaseService) Lang() string {
-	if val := s.Ctx.Value(constant.LangKey); val != nil {
+	if val := s.Ctx.Value(constant.CtxKeyLang); val != nil {
 		return val.(string)
 	}
 	return ""

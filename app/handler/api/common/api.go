@@ -48,6 +48,37 @@ type Api struct {
 	language string //语言
 	env      string
 	userId   int64
+	traceId  string
+}
+
+// ----------- Init Context -----------
+
+func (a *Api) WithContext(c *gin.Context) *Api {
+	a.ginContext = c
+
+	a.language = c.GetHeader(constant.Language)
+	if a.language == "" {
+		a.language = i18nx.En
+	}
+
+	a.env = c.GetHeader(constant.Env)
+	if a.env == "" {
+		a.env = constant.Test
+	}
+
+	a.userId = c.GetInt64(constant.UserId)
+	a.traceId = c.GetString(constant.TraceId)
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, constant.CtxKeyUserId, a.userId)
+	ctx = context.WithValue(ctx, constant.CtxKeyEnv, a.env)
+	ctx = context.WithValue(ctx, constant.CtxKeyLang, a.language)
+	ctx = context.WithValue(ctx, constant.CtxKeyTrace, a.traceId)
+
+	a.commonContext = ctx
+	a.validate = validator.New(validator.WithRequiredStructEnabled())
+
+	return a
 }
 
 // Bind 参数校验
@@ -92,10 +123,9 @@ func (a *Api) Bind(d interface{}, bindings ...binding.Binding) *Api {
 
 // 添加error
 func (a *Api) AddError(err error) {
-	if err == nil {
-		return
+	if err != nil {
+		a.Errors = errors.Join(a.Errors, err)
 	}
-	a.Errors = errors.Join(a.Errors, err)
 }
 
 // 设置日志
@@ -104,69 +134,11 @@ func (a *Api) WithLogger() *Api {
 	return a
 }
 
-// 上下文 处理对应公共头参数
-func (a *Api) WithContext(c *gin.Context) *Api {
-	a.ginContext = c
-
-	a.commonContext = context.Background()
-	a.commonContext = context.WithValue(a.commonContext, constant.UserIdKey, a.defaultUserId())
-	a.commonContext = context.WithValue(a.commonContext, constant.EnvKey, a.defaultEnv())
-	a.commonContext = context.WithValue(a.commonContext, constant.LangKey, a.defaultLanguage())
-	a.commonContext = context.WithValue(a.commonContext, constant.TraceIdKey, c.GetString(constant.TraceId))
-
-	a.validate = validator.New(validator.WithRequiredStructEnabled())
-
-	return a
-}
-
-func (a *Api) defaultUserId() int64 {
-	userId := a.ginContext.GetInt64(constant.UserId)
-	a.userId = userId
-	return userId
-}
-
-func (a *Api) defaultLanguage() string {
-	lang := a.ginContext.GetHeader(constant.Language)
-	if lang == "" {
-		lang = i18nx.En
-	}
-	a.language = lang
-	return lang
-}
-
-func (a *Api) defaultEnv() string {
-	env := a.ginContext.GetHeader(constant.Env)
-	if env == "" {
-		env = constant.Test
-	}
-	a.env = env
-	return env
-}
-
-// 获取上下文
-func (a *Api) GetContext() context.Context {
-	return a.commonContext
-}
-
-// 获取当前语言
-func (a *Api) GetLang() string {
-	return a.language
-}
-
-// 获取当前环境
-func (a *Api) GetEnv() string {
-	return a.env
-}
-
-// 获取用户id
-func (a *Api) GetUserId() int64 {
-	return a.userId
-}
-
-// 获取日志句柄
-func (a *Api) Logger() *zap.Logger {
-	return a.logger
-}
+func (a *Api) GetContext() context.Context { return a.commonContext }
+func (a *Api) GetLang() string             { return a.language }
+func (a *Api) GetEnv() string              { return a.env }
+func (a *Api) GetUserId() int64            { return a.userId }
+func (a *Api) Logger() *zap.Logger         { return a.logger }
 
 // 统一的响应发送方法
 func (a *Api) sendResponse(code interface{}, msg string, data interface{}) {

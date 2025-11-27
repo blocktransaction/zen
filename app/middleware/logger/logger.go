@@ -14,6 +14,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/blocktransaction/zen/common/constant"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -26,120 +27,34 @@ type bodyLogWriter struct {
 }
 
 func (w *bodyLogWriter) Write(b []byte) (int, error) {
-	// 只缓存前 maxBodyLen 字节，避免 OOM
-	if w.body.Len() < w.maxBodyLen {
-		remain := w.maxBodyLen - w.body.Len()
+	// 1. 缓存响应体（仅缓存到 maxBodyLen）
+	currentLen := w.body.Len()
+	if currentLen < w.maxBodyLen {
+		remain := w.maxBodyLen - currentLen
+		// 只有当前剩余的字节需要被缓存
+		bytesToCache := b
 		if len(b) > remain {
-			w.body.Write(b[:remain])
-		} else {
-			w.body.Write(b)
+			bytesToCache = b[:remain]
 		}
+		w.body.Write(bytesToCache) // 只调用一次 Write
 	}
+
+	// 2. 将数据写入实际的 ResponseWriter
 	return w.ResponseWriter.Write(b)
-}
-
-// --- 脱敏处理 ---
-func maskSensitive(jsonStr string, sensitiveKeys []string) string {
-	if len(jsonStr) == 0 {
-		return jsonStr
-	}
-
-	// 尝试解析为 JSON
-	var data interface{}
-	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
-		// 不是 JSON，直接返回原始
-		return jsonStr
-	}
-
-	// 递归处理
-	maskMap(data, sensitiveKeys)
-
-	marshaled, _ := json.Marshal(data)
-	return string(marshaled)
-}
-
-func maskMap(v interface{}, sensitiveKeys []string) {
-	switch val := v.(type) {
-	case map[string]interface{}:
-		for k, v2 := range val {
-			if isSensitive(k, sensitiveKeys) {
-				val[k] = "***"
-			} else {
-				maskMap(v2, sensitiveKeys)
-			}
-		}
-	case []interface{}:
-		for _, v2 := range val {
-			maskMap(v2, sensitiveKeys)
-		}
-	}
-}
-
-func isSensitive(key string, sensitiveKeys []string) bool {
-	keyLower := strings.ToLower(key)
-	for _, sk := range sensitiveKeys {
-		if keyLower == strings.ToLower(sk) {
-			return true
-		}
-	}
-	return false
-}
-
-func isJSONContentType(ct string) bool {
-	if ct == "" {
-		return false
-	}
-	ct = strings.ToLower(strings.TrimSpace(ct))
-	// 去掉 charset 等参数
-	if i := strings.Index(ct, ";"); i >= 0 {
-		ct = strings.TrimSpace(ct[:i])
-	}
-	if ct == "application/json" || ct == "text/json" {
-		return true
-	}
-	// vendor types like application/ld+json, application/problem+json
-	if strings.HasPrefix(ct, "application/") && strings.HasSuffix(ct, "+json") {
-		return true
-	}
-	return false
-}
-
-func looksLikeJSONBody(b []byte) bool {
-	for _, ch := range b {
-		if unicode.IsSpace(rune(ch)) {
-			continue
-		}
-		return ch == '{' || ch == '['
-	}
-	return false
-}
-
-func shouldLogReqBody(cfg logConfig, contentType string, peekBody []byte) bool {
-	if !cfg.onlyJSONBody {
-		return true
-	}
-	if isJSONContentType(contentType) {
-		return true
-	}
-	if cfg.guessJSON && len(peekBody) > 0 {
-		return looksLikeJSONBody(peekBody)
-	}
-	return false
 }
 
 // 日志记录
 func GinzapWithBody(logger *zap.Logger, opts ...Option) gin.HandlerFunc {
+	options := &logConfig{}
+	for _, o := range opts {
+		o(options)
+	}
 	return func(c *gin.Context) {
 		start := time.Now()
 
 		var reqBody string
 		var peekReq []byte
 		contentType := c.Request.Header.Get("Content-Type")
-
-		options := &logConfig{}
-		for _, o := range opts {
-			o(options)
-		}
 
 		if options.enableReqBody && c.Request.Body != nil {
 			// 先读取受限长度（MaxBodySize + 1 用于判断是否被截断）
@@ -198,7 +113,7 @@ func GinzapWithBody(logger *zap.Logger, opts ...Option) gin.HandlerFunc {
 			}
 		} else {
 			logger.Info("http request log",
-				zap.String("traceId", c.GetString("traceID")),
+				zap.String("traceId", c.GetString(constant.TraceId)),
 				zap.String("method", c.Request.Method),
 				zap.String("path", c.Request.URL.Path),
 				zap.String("query", c.Request.URL.RawQuery),
@@ -256,4 +171,101 @@ func RecoveryWithZap(logger *zap.Logger, stack bool) gin.HandlerFunc {
 		}()
 		c.Next()
 	}
+}
+
+// 脱敏处理
+func maskSensitive(jsonStr string, sensitiveKeys []string) string {
+	if len(jsonStr) == 0 {
+		return jsonStr
+	}
+
+	// 尝试解析为 JSON
+	var data interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		// 不是 JSON，直接返回原始
+		return jsonStr
+	}
+
+	// 递归处理
+	maskMap(data, sensitiveKeys)
+
+	marshaled, _ := json.Marshal(data)
+	return string(marshaled)
+}
+
+// 递归脱敏数据
+func maskMap(v interface{}, sensitiveKeys []string) {
+	switch val := v.(type) {
+	case map[string]interface{}:
+		for k, v2 := range val {
+			if isSensitive(k, sensitiveKeys) {
+				// 如果键是敏感的，直接脱敏整个值
+				val[k] = "***"
+			} else {
+				// 键不敏感，但值可能是结构体/数组，继续递归处理
+				maskMap(v2, sensitiveKeys)
+			}
+		}
+	case []interface{}:
+		for _, v2 := range val {
+			// 递归处理数组中的每个元素
+			maskMap(v2, sensitiveKeys)
+		}
+	// 增加对基本类型的 case，避免不必要的递归
+	case nil, bool, string, float64:
+		// 基本类型不需要处理
+		return
+	}
+}
+
+func isSensitive(key string, sensitiveKeys []string) bool {
+	keyLower := strings.ToLower(key)
+	for _, sk := range sensitiveKeys {
+		if keyLower == strings.ToLower(sk) {
+			return true
+		}
+	}
+	return false
+}
+
+func isJSONContentType(ct string) bool {
+	if ct == "" {
+		return false
+	}
+	ct = strings.ToLower(strings.TrimSpace(ct))
+	// 去掉 charset 等参数
+	if i := strings.Index(ct, ";"); i >= 0 {
+		ct = strings.TrimSpace(ct[:i])
+	}
+	if ct == "application/json" || ct == "text/json" {
+		return true
+	}
+	// vendor types like application/ld+json, application/problem+json
+	if strings.HasPrefix(ct, "application/") && strings.HasSuffix(ct, "+json") {
+		return true
+	}
+	return false
+}
+
+func looksLikeJSONBody(b []byte) bool {
+	for _, ch := range b {
+		if unicode.IsSpace(rune(ch)) {
+			continue
+		}
+		return ch == '{' || ch == '['
+	}
+	return false
+}
+
+func shouldLogReqBody(cfg logConfig, contentType string, peekBody []byte) bool {
+	if !cfg.onlyJSONBody {
+		return true
+	}
+	if isJSONContentType(contentType) {
+		return true
+	}
+	if cfg.guessJSON && len(peekBody) > 0 {
+		return looksLikeJSONBody(peekBody)
+	}
+	return false
 }

@@ -10,7 +10,8 @@ type Job struct {
 	Target     string `gorm:"type:varchar(256);not null;comment:执行目标"` // http(s)... or cmd://...
 	Parallel   int    `gorm:"type:int(256);not null;default:1"`
 	RetryCount int    `gorm:"not null;default:0"`
-	TimeoutSec int    `gorm:"not null;default:5"`
+	TimeoutSec int    `gorm:"not null;default:5"` 
+	
 	Enabled    bool   `gorm:"not null;default:true"`
 	CreatedAt  time.Time
 	UpdatedAt  time.Time

@@ -21,12 +21,13 @@ import (
 	"gorm.io/gorm"
 )
 
+var (
+	dsn       = flag.String("dsn", "root:123456@tcp(127.0.0.1:3307)/scheduler?charset=utf8mb4&parseTime=True&loc=Local", "mysql dsn")
+	redisAddr = flag.String("redis", "127.0.0.1:6379", "redis addr")
+	addr      = flag.String("addr", ":8080", "http listen")
+)
+
 func main() {
-	var (
-		dsn       = flag.String("dsn", "root:123456@tcp(127.0.0.1:3307)/scheduler?charset=utf8mb4&parseTime=True&loc=Local", "mysql dsn")
-		redisAddr = flag.String("redis", "127.0.0.1:6379", "redis addr")
-		addr      = flag.String("addr", ":8080", "http listen")
-	)
 	flag.Parse()
 
 	// gorm
