@@ -69,7 +69,7 @@ func (a *Api) WithContext(c *gin.Context) *Api {
 	a.userId = c.GetInt64(constant.UserId)
 	a.traceId = c.GetString(constant.TraceId)
 
-	ctx := context.Background()
+	ctx := context.Background()																																																																																																																																																																						
 	ctx = context.WithValue(ctx, constant.CtxKeyUserId, a.userId)
 	ctx = context.WithValue(ctx, constant.CtxKeyEnv, a.env)
 	ctx = context.WithValue(ctx, constant.CtxKeyLang, a.language)

@@ -124,25 +124,3 @@ func runGooseCommand(command string, args []string) error {
 
 	return nil
 }
-
-// 应用启动时自动执行迁移
-func runMigrations() error {
-	dsn := getDSN(env)
-
-	db, err := goose.OpenDBWithDriver(dbDriver, dsn)
-	if err != nil {
-		return fmt.Errorf("goose: 无法打开数据库: %v", err)
-	}
-	defer db.Close()
-
-	if _, err := goose.EnsureDBVersion(db); err != nil {
-		return fmt.Errorf("goose: 无法确保数据库版本: %v", err)
-	}
-
-	fmt.Printf("正在进行数据库迁移 (env=%s, dir=%s)...\n", env, migrationsDir)
-	if err := goose.Up(db, migrationsDir); err != nil {
-		return fmt.Errorf("goose: up 失败: %v", err)
-	}
-	fmt.Println("数据库迁移成功。")
-	return nil
-}

@@ -16,6 +16,19 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// -------- 键解析 / 操作符映射 --------
+
+var opMap = map[string]string{
+	"eq":   "=",
+	"ne":   "!=",
+	"gt":   ">",
+	"lt":   "<",
+	"gte":  ">=",
+	"lte":  "<=",
+	"like": "LIKE",
+	"in":   "IN",
+}
+
 // -------- 条件与 JOIN --------
 
 type Condition struct {
@@ -66,21 +79,22 @@ func NewDAOWithRdb[T any](ctx context.Context, db *gorm.DB, rdb *redis.Client) *
 }
 
 func (d *DAO[T]) clone() *DAO[T] {
-	cp := &DAO[T]{
-		db:       d.db,
-		rdb:      d.rdb,
-		conds:    append([]any{}, d.conds...),
-		selects:  append([]string{}, d.selects...),
-		orderBy:  append([]string{}, d.orderBy...),
-		limit:    d.limit,
-		offset:   d.offset,
-		unscoped: d.unscoped,
-		err:      d.err,
+	nd := *d // shallow copy
+
+	// copy slices only when modified (copy-on-write)
+	if d.conds != nil {
+		nd.conds = append([]any(nil), d.conds...)
 	}
-	if len(d.joins) > 0 {
-		cp.joins = append([]*Join{}, d.joins...)
+	if d.selects != nil {
+		nd.selects = append([]string(nil), d.selects...)
 	}
-	return cp
+	if d.orderBy != nil {
+		nd.orderBy = append([]string(nil), d.orderBy...)
+	}
+	if d.joins != nil {
+		nd.joins = append([]*Join(nil), d.joins...)
+	}
+	return &nd
 }
 
 // --- 链式构建 ---
@@ -334,19 +348,6 @@ func applyConditions(tx *gorm.DB, conds []any) *gorm.DB {
 		}
 	}
 	return tx
-}
-
-// -------- 键解析 / 操作符映射 --------
-
-var opMap = map[string]string{
-	"eq":   "=",
-	"ne":   "!=",
-	"gt":   ">",
-	"lt":   "<",
-	"gte":  ">=",
-	"lte":  "<=",
-	"like": "LIKE",
-	"in":   "IN",
 }
 
 func parseKey(k string) (field, sqlOp string) {

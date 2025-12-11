@@ -78,14 +78,12 @@ func (m *Manager) setup(
 	path string,
 	supported []string,
 	defaultLang string,
-	// cb func(event fsnotify.Event),
 ) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.defLang = defaultLang
 	m.supported = supported
-	// m.cb = cb
 	m.dir = path
 
 	if err := m.loadFiles(path, supported); err != nil {

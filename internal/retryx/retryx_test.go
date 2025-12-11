@@ -1,32 +1,28 @@
-package main
+package retryx
 
 import (
 	"errors"
 	"fmt"
 	"log"
+	"testing"
 	"time"
-
-	"github.com/blocktransaction/zen/internal/retryx"
 )
 
-func main() {
-	pool := retryx.NewPool[string](5) // 5 workers
+func TestRetryx(t *testing.T) {
+	pool := NewPool[string](5) // 5 workers
 	defer pool.Close()
 
-	var futures []*retryx.Future[string]
+	var futures []*Future[string]
 	// taskCount := 20
 
 	// Define a reusable retrier configuration for our API calls
-	apiRetrier := retryx.NewRetrier[string](
-		retryx.WithMaxRetries[string](10),
-		retryx.WithInitialDelay[string](10*time.Millisecond),
+	apiRetrier := NewRetrier(
+		WithMaxRetries[string](3),
+		WithInitialDelay[string](10*time.Millisecond),
 	)
 
-	// Submit 20 tasks to the pool
-	// for i := 0; i < taskCount; i++ {
-	// taskID := i // Capture loop variable
 	i := 0
-	task := retryx.Task[string]{
+	task := Task[string]{
 		Fn: func() (string, error) {
 			fmt.Println("----", i)
 			i += 1

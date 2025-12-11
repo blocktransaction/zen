@@ -6,7 +6,7 @@ import (
 
 	"github.com/blocktransaction/zen/app/dao/user"
 	"github.com/blocktransaction/zen/app/handler/api/httpreq"
-	"github.com/blocktransaction/zen/app/model"
+	"github.com/blocktransaction/zen/app/model/entity"
 	"github.com/blocktransaction/zen/app/service"
 )
 
@@ -27,7 +27,7 @@ func NewUserService(ctx context.Context, dao user.UserDao) UserService {
 }
 
 func (s *userServiceImpl) CreateUser() (bool, error) {
-	info := model.User{
+	info := entity.User{
 		Name:      "zorro",
 		CreatedAt: time.Now().Unix(),
 	}
@@ -35,6 +35,6 @@ func (s *userServiceImpl) CreateUser() (bool, error) {
 	return s.userDao.Create(&info)
 }
 
-func (s *userServiceImpl) ListUser(req *httpreq.FindReq) ([]model.User, int64, error) {
+func (s *userServiceImpl) ListUser(req *httpreq.FindReq) ([]entity.User, int64, error) {
 	return s.userDao.Find(req)
 }

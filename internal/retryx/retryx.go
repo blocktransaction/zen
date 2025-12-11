@@ -39,55 +39,60 @@ func NewRetrier[T any](opts ...Option[T]) *Retrier[T] {
 	return r
 }
 
-// Do executes task with retry/backoff.
 func (r *Retrier[T]) Do(ctx context.Context, task func() (T, error)) (T, error) {
 	var zero T
-	var lastErr error
 	start := time.Now()
 	delay := r.initialDelay
+	var lastErr error
 
-	for attempt := 1; ; attempt++ {
+	for attempt := 1; attempt <= r.maxRetries; attempt++ {
+		// -------------------- 执行业务 --------------------
 		result, err := task()
 		if err == nil {
 			return result, nil
 		}
 		lastErr = err
 
+		// -------------------- 错误过滤 --------------------
 		if r.errorFilter != nil && !r.errorFilter(err) {
 			return zero, err
 		}
 
-		if attempt >= r.maxRetries {
-			lastErr = fmt.Errorf("retry failed after %d attempts: %w", r.maxRetries, err)
-			break
+		// -------------------- 终止条件 --------------------
+		if attempt == r.maxRetries {
+			return zero, fmt.Errorf("retry failed after %d attempts: %w", attempt, err)
 		}
 		if r.maxElapsedTime > 0 && time.Since(start) >= r.maxElapsedTime {
-			lastErr = fmt.Errorf("retry failed due to elapsed time limit: %w", err)
-			break
+			return zero, fmt.Errorf("retry elapsed time exceeded: %w", err)
 		}
 
-		// backoff + jitter
-		nextDelay := time.Duration(float64(delay) * r.backoffFactor)
-		if nextDelay > r.maxDelay {
-			nextDelay = r.maxDelay
+		// -------------------- 计算下次延迟（带抖动） --------------------
+		next := time.Duration(float64(delay) * r.backoffFactor)
+		if next > r.maxDelay {
+			next = r.maxDelay
 		}
 		if r.jitterFactor > 0 {
-			jitter := r.rand.Float64() * r.jitterFactor // [0, jitterFactor]
-			nextDelay += time.Duration(float64(nextDelay) * jitter)
-			fmt.Println("nextDelay--", nextDelay)
+			j := 1 + r.rand.Float64()*r.jitterFactor // 增加 0%~jitterFactor
+			next = time.Duration(float64(next) * j)
 		}
-		delay = nextDelay
 
 		if r.onRetry != nil {
-			r.onRetry(err, attempt, delay)
+			r.onRetry(err, attempt, next)
 		}
 
+		// -------------------- 等待（带 ctx 控制） --------------------
+		timer := time.NewTimer(next)
 		select {
 		case <-ctx.Done():
-			return zero, ctx.Err()
-		case <-time.After(delay):
+			timer.Stop()
+			return zero, fmt.Errorf("retry aborted: %w, last error: %v", ctx.Err(), lastErr)
+		case <-timer.C:
 		}
+
+		delay = next
 	}
+
+	// 逻辑上不会走到这里
 	return zero, lastErr
 }
 
@@ -109,4 +114,7 @@ func WithErrorFilter[T any](f func(error) bool) Option[T] {
 }
 func WithOnRetry[T any](f func(err error, attempt int, nextDelay time.Duration)) Option[T] {
 	return func(r *Retrier[T]) { r.onRetry = f }
+}
+func WithRandSource[T any](src rand.Source) Option[T] {
+	return func(r *Retrier[T]) { r.rand = rand.New(src) }
 }

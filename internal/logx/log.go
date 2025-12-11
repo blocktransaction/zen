@@ -25,7 +25,7 @@ type ErrorWrapper struct {
 	Metadata map[string]interface{}
 }
 
-// NewErrorWrapper 构建 ErrorWrapper
+//  构建 ErrorWrapper
 func NewErrorWrapper(err error, code int) *ErrorWrapper {
 	return &ErrorWrapper{
 		Err:   err,
@@ -34,7 +34,7 @@ func NewErrorWrapper(err error, code int) *ErrorWrapper {
 	}
 }
 
-// Init 初始化 logger
+//  初始化 logger
 func Init(service, logPath string, isProd bool) *zap.Logger {
 	once.Do(func() {
 		instance = newLogger(service, logPath, isProd)

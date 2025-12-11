@@ -5,24 +5,24 @@ import (
 
 	"github.com/blocktransaction/zen/app/dao/dao"
 	"github.com/blocktransaction/zen/app/handler/api/httpreq"
-	"github.com/blocktransaction/zen/app/model"
+	"github.com/blocktransaction/zen/app/model/entity"
 	"github.com/blocktransaction/zen/common/constant"
 	"github.com/blocktransaction/zen/internal/database/mysql/gormx"
 )
 
 type userImplDao struct {
-	dao *dao.DAO[model.User]
+	dao *dao.DAO[entity.User]
 }
 
 func NewUserImplDao(ctx context.Context) UserDao {
 	env := ctx.Value(constant.CtxKeyEnv).(string)
 	return &userImplDao{
-		dao: dao.NewDAO[model.User](ctx, gormx.GetOrm(env)),
+		dao: dao.NewDAO[entity.User](ctx, gormx.GetOrm(env)),
 	}
 }
 
 // 创建用户
-func (d *userImplDao) Create(user *model.User) (bool, error) {
+func (d *userImplDao) Create(user *entity.User) (bool, error) {
 	if err := d.dao.Create(user); err != nil {
 		return false, err
 	}
@@ -30,9 +30,9 @@ func (d *userImplDao) Create(user *model.User) (bool, error) {
 }
 
 // 查找
-func (d *userImplDao) Find(req *httpreq.FindReq) ([]model.User, int64, error) {
+func (d *userImplDao) Find(req *httpreq.FindReq) ([]entity.User, int64, error) {
 	var (
-		list  []model.User
+		list  []entity.User
 		count int64
 	)
 
